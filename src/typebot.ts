@@ -42,6 +42,7 @@ export async function startChat(): Promise<TypebotResponse | undefined> {
   const json = await fetchResponse.json();
 
   const response: TypebotResponse = {
+    code: json.code,
     sessionId: json.sessionId,
     messages: mapMessages(json.messages),
   };
