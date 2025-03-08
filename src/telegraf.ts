@@ -1,4 +1,4 @@
-import * as SessionIdStore from "./SessionIdStore.ts";
+import * as SessionIdStore from "./sessionIdStore.ts";
 import * as Debug from "./debug.ts";
 import * as Typebot from "./typebot.ts";
 import { TypebotResponse, TypebotMessage } from "./typebot.ts";
@@ -10,6 +10,7 @@ export function start(bot): void {
 
 export function stop(bot): void {
   Debug.log("Bot stopped");
+  SessionIdStore.disconnect()
   bot.stop();
 }
 
@@ -27,7 +28,7 @@ export async function onStart(ctx): void {
 
   Debug.log("START", {
     chadId: ctx.chat.id,
-    sessionId: SessionIdStore.get(ctx.chat.id),
+    sessionId: response?.sessionId
   });
 
   SessionIdStore.add(ctx.chat.id, response?.sessionId);
@@ -39,7 +40,6 @@ export async function onStart(ctx): void {
 }
 
 export async function onQuit(ctx): void {
-  SessionIdStore.remove(ctx.chat.id);
   await ctx.leaveChat();
 }
 
@@ -49,13 +49,13 @@ export async function onText(ctx): void {
     return;
   }
 
+  const sessionId = await SessionIdStore.get(ctx.chat.id);
+  Debug.assert(sessionId != undefined, "TEXT", "sessionId is undefined");
+
   Debug.log("TEXT", {
     chadId: ctx.chat.id,
-    sessionId: SessionIdStore.get(ctx.chat.id),
+    sessionId: sessionId
   });
-
-  const sessionId = SessionIdStore.get(ctx.chat.id);
-  Debug.assert(sessionId != undefined, "TEXT", "sessionId is undefined");
 
   const response: TypebotResponse | undefined = await Typebot.continueChat(
     sessionId,
@@ -65,6 +65,7 @@ export async function onText(ctx): void {
   // NOTE: This means that typebot has no more messages to reply
   if (response.code == "NOT_FOUND") {
     Debug.log("TEXT", "END OF THE SESSION TYPEBOT");
+	SessionIdStore.remove(ctx.chat.id)
     return;
   } else if (response == undefined) {
     Debug.log("TEXT", "Response is undefined");
